@@ -1,0 +1,6 @@
+Metric,Baseline Logistic Regression,Tuned Logistic Regression
+Accuracy,0.8013,0.7956
+Precision,0.6407,0.628
+Recall,0.5722,0.5642
+F1 Score,0.6045,0.5944
+ROC-AUC,0.8478,0.8467
