@@ -4,12 +4,6 @@ A machine learning-powered customer churn prediction system that predicts the pr
 
 The project combines a trained Logistic Regression model with a reusable preprocessing pipeline and exposes the model through a FastAPI REST API. The API includes input validation, health monitoring, automated tests, and Docker-based deployment.
 
-![Python](https://img.shields.io/badge/Python-3.12-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-REST%20API-009688)
-![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-orange)
-![Docker](https://img.shields.io/badge/Docker-ready-2496ED)
-![Tests](https://img.shields.io/badge/tests-pytest-brightgreen)
-
 ## Table of Contents
 
 - [Features](#features)
@@ -75,7 +69,7 @@ Stratified 5-fold cross-validation was used for model comparison using ROC-AUC.
 
 **Logistic Regression** achieved the best cross-validation ROC-AUC and was selected as the final model.
 
-The final model achieved approximately **0.8478 ROC-AUC** on the holdout test set.
+The final Logistic Regression model achieved **84.78% ROC-AUC** on the holdout test set.
 
 ### Decision Threshold Optimisation
 
@@ -370,4 +364,3 @@ Potential improvements include:
 
 BTech CSE — NIT Silchar
 
-GitHub: [https://github.com/SayeedullahAlom](https://github.com/SayeedullahAlom)
