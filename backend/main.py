@@ -3,9 +3,13 @@ from fastapi import FastAPI, HTTPException
 from backend.prediction_service import PredictionService
 from backend.schemas import CustomerData, PredictionResponse
 from backend.exceptions import PredictionError
-from backend.exceptions import PredictionError
 
-app = FastAPI(title="Customer Churn Prediction API")
+
+app = FastAPI(
+    title="Customer Churn Prediction API",
+    description="API for predicting customer churn probability and risk level using a trained machine learning model.",
+    version="1.0.0"
+)
 
 
 # Project root
@@ -21,12 +25,20 @@ prediction_service = PredictionService(
 )
 
 
-@app.get("/")
+@app.get(
+    "/",
+    summary="API welcome",
+    description="Returns a simple message confirming that the Customer Churn API is running."
+)
 def home():
     return {"message": "Customer Churn API is running"}
 
 
-@app.get("/health")
+@app.get(
+    "/health",
+    summary="Check API health",
+    description="Returns the API status and confirms that the model and preprocessor are loaded."
+)
 def health_check():
     return {
         "status": "healthy",
@@ -34,7 +46,12 @@ def health_check():
     }
 
 
-@app.post("/predict", response_model=PredictionResponse)
+@app.post(
+    "/predict",
+    response_model=PredictionResponse,
+    summary="Predict customer churn",
+    description="Predicts the probability that a customer will churn and assigns a risk level."
+)
 def predict(data: CustomerData):
     try:
         return prediction_service.predict(data)

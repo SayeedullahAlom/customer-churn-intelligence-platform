@@ -6,6 +6,9 @@ import pandas as pd
 from backend.config import CHURN_THRESHOLD
 from backend.exceptions import PredictionError
 
+
+logger = logging.getLogger(__name__)
+
 class PredictionService:
 
     def __init__(self, model_path, preprocessor_path):
@@ -54,6 +57,13 @@ class PredictionService:
             input_data = self.prepare_input(data)
             processed_data = self.preprocessor.transform(input_data)
 
+            feature_names = self.preprocessor.get_feature_names_out()
+
+            processed_data = pd.DataFrame(
+                processed_data,
+                columns=feature_names
+            )
+
             probability = self.model.predict_proba(processed_data)[0][1]
 
             prediction = int(probability >= CHURN_THRESHOLD)
@@ -73,4 +83,5 @@ class PredictionService:
             }
 
         except Exception as exc:
+            logger.exception("Prediction failed.")
             raise PredictionError("Prediction failed.") from exc
