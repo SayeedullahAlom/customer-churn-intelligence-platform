@@ -50,7 +50,12 @@ def health_check():
     "/predict",
     response_model=PredictionResponse,
     summary="Predict customer churn",
-    description="Predicts the probability that a customer will churn and assigns a risk level."
+    description="Predicts the probability that a customer will churn and assigns a risk level.",
+    responses={
+        500: {
+            "description": "Prediction failed due to a server-side error."
+        }
+    }
 )
 def predict(data: CustomerData):
     try:

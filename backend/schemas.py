@@ -38,3 +38,14 @@ class PredictionResponse(BaseModel):
     churn_probability: float
     risk_level: str
     message: str
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "prediction": 1,
+                "churn_probability": 0.7989,
+                "risk_level": "High",
+                "message": "Customer is likely to churn."
+            }
+        }
+    }
