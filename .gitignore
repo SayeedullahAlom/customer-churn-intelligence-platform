@@ -24,9 +24,13 @@ venv/
 # Logs
 *.log
 
-# Model files (optional)
+# Model files
 *.pkl
 *.joblib
+
+# Production model artifacts
+!final_logistic_regression_model.pkl
+!preprocessor.pkl
 
 # Data files (optional)
 data/
