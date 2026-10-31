@@ -1,64 +1,105 @@
 # Customer Churn Intelligence Platform
 
-A machine learning-powered customer churn prediction system that predicts the probability of customer churn and classifies customers into risk levels.
+An end-to-end machine learning application that predicts customer churn probability and classifies customers based on their risk of leaving a telecom service.
 
-The project combines a trained Logistic Regression model with a reusable preprocessing pipeline and exposes the model through a FastAPI REST API. The API includes input validation, health monitoring, automated tests, and Docker-based deployment.
+The platform combines a **Logistic Regression model**, a reusable Scikit-learn preprocessing pipeline, a **FastAPI backend**, and an interactive **Streamlit frontend** to help identify customers who may be likely to churn and support data-driven customer retention strategies.
 
 ## Table of Contents
 
+- [Overview](#overview)
 - [Features](#features)
+- [Application Workflow](#application-workflow)
 - [Machine Learning](#machine-learning)
+- [Model Evaluation](#model-evaluation)
 - [API](#api)
 - [Project Structure](#project-structure)
 - [Running Locally](#running-locally)
 - [Running Tests](#running-tests)
 - [Docker](#docker)
 - [Tech Stack](#tech-stack)
-- [Project Workflow](#project-workflow)
 - [Business Objective](#business-objective)
 - [Future Improvements](#future-improvements)
 - [Author](#author)
 
+## Overview
+
+Customer churn occurs when customers stop using a company's products or services. Identifying customers who are likely to leave can help businesses take proactive steps to improve customer retention.
+
+This project uses the Telco Customer Churn dataset to build a machine learning system that:
+
+1. Accepts customer information through an interactive interface.
+2. Processes customer data using a trained preprocessing pipeline.
+3. Predicts the probability of customer churn.
+4. Classifies customers into risk categories.
+5. Provides suggestions to support customer retention.
+
 ## Features
 
-- Customer churn prediction using Machine Learning
-- Churn probability estimation
-- Custom decision threshold of 0.35
-- High/Low customer risk classification
-- Input validation using Pydantic
-- FastAPI REST API
-- Interactive Swagger API documentation
-- Health check endpoint
-- Centralised prediction error handling
-- Automated API tests using Pytest
-- Dockerised deployment
+- Customer churn prediction using Logistic Regression.
+- Churn probability estimation.
+- Custom classification threshold of `0.35`.
+- Low, Medium, and High customer risk classification.
+- Interactive Streamlit frontend.
+- FastAPI REST API for model inference.
+- Input validation using Pydantic.
+- Interactive Swagger API documentation.
+- Health check endpoint.
+- Centralised prediction and error handling.
+- Automated API testing using Pytest.
+- Docker support for containerising the API.
+
+## Application Workflow
+
+The application follows this flow:
+
+```mermaid
+flowchart TD
+    A[Customer Information] --> B[Streamlit Frontend]
+    B --> C[FastAPI Backend]
+    C --> D[Pydantic Input Validation]
+    D --> E[Preprocessing Pipeline]
+    E --> F[Logistic Regression Model]
+    F --> G[Churn Probability]
+    G --> H[Classification Threshold 0.35]
+    H --> I[Prediction and Risk Level]
+    I --> J[JSON Response]
+    J --> K[Streamlit Results Dashboard]
+```
+
+The Streamlit frontend communicates with the FastAPI backend through HTTP requests. The backend validates the incoming customer data, applies preprocessing, generates a churn probability, and returns the prediction as a JSON response.
 
 ## Machine Learning
 
-The project uses the **Telco Customer Churn dataset** to predict whether a customer is likely to churn.
+The project uses the **Telco Customer Churn dataset**.
 
 ### Data Preprocessing
 
-The preprocessing pipeline includes:
+A reusable preprocessing pipeline was developed using Scikit-learn's `Pipeline` and `ColumnTransformer`.
 
-- Numerical feature imputation using the median
-- Numerical feature standardisation using `StandardScaler`
-- Categorical feature imputation using the most frequent value
-- Categorical feature encoding using `OneHotEncoder`
-- Stratified train-test split
+The preprocessing steps include:
 
-The preprocessing pipeline is saved as `preprocessor.pkl` and reused during API inference so that new customer data receives the same transformations used during model training.
+**Numerical features**
+- Missing-value imputation using the median.
+- Feature standardisation using `StandardScaler`.
+
+**Categorical features**
+- Missing-value imputation using the most frequent value.
+- Encoding using `OneHotEncoder` with unknown-category handling.
+
+A stratified train-test split was used to preserve the target-class distribution.
+
+The fitted preprocessing pipeline is saved as `preprocessor.pkl` and reused during inference to ensure that incoming customer data receives the same transformations as the training data.
 
 ### Model Selection
 
-The following classification models were evaluated:
+The following classification algorithms were evaluated:
 
 - Logistic Regression
 - Decision Tree
 - Random Forest
 - XGBoost
 
-Stratified 5-fold cross-validation was used for model comparison using ROC-AUC.
+Stratified 5-fold cross-validation was used to compare the models using ROC-AUC.
 
 | Model | Cross-Validation ROC-AUC |
 |---|---:|
@@ -67,43 +108,63 @@ Stratified 5-fold cross-validation was used for model comparison using ROC-AUC.
 | Random Forest | 0.8449 |
 | Decision Tree | 0.6664 |
 
-**Logistic Regression** achieved the best cross-validation ROC-AUC and was selected as the final model.
+**Logistic Regression** was selected as the final model based on its cross-validation performance.
 
-The final Logistic Regression model achieved **84.78% ROC-AUC** on the holdout test set.
+## Model Evaluation
 
-### Decision Threshold Optimisation
+### Baseline Model Performance
 
-The default classification threshold of `0.50` was changed to **0.35** after evaluating out-of-fold predictions.
-
-The lower threshold prioritises identifying customers who are likely to churn, which is useful when the business objective is customer retention.
-
-At a threshold of `0.35`:
+The baseline Logistic Regression model achieved the following results on the holdout test set using the default classification threshold of `0.50`.
 
 | Metric | Score |
 |---|---:|
-| Accuracy | 77.79% |
-| Precision | 56.39% |
-| Recall | 71.93% |
-| F1-score | 63.22% |
+| Accuracy | 80.13% |
+| Precision | 64.07% |
+| Recall | 57.22% |
+| F1-score | 60.45% |
 | ROC-AUC | 84.78% |
 
-The threshold increases recall compared with the default 0.50 threshold while maintaining the same ROC-AUC.
+### Decision Threshold Selection
+
+The default classification threshold of `0.50` was lowered to `0.35` to prioritise identifying more potential churn customers.
+
+The deployed application uses the **baseline Logistic Regression model with a separate classification threshold of `0.35`**.
+
+| Metric | Threshold 0.50 | Threshold 0.35 |
+|---|---:|---:|
+| Accuracy | 80.13% | 77.79% |
+| Precision | 64.07% | 56.39% |
+| Recall | 57.22% | 71.93% |
+| F1-score | 60.45% | 63.22% |
+| ROC-AUC | 84.78% | 84.78% |
+
+Lowering the threshold increases recall from 57.22% to 71.93%, helping the business identify more customers who may churn.
+
+This comes with a reduction in precision and accuracy. The trade-off is intentional because missing a potential churn customer may be costly for a retention-focused business.
+
+ROC-AUC remains unchanged because it evaluates model ranking performance across classification thresholds rather than performance at one particular threshold.
 
 ## API
 
-The application is built using **FastAPI** and provides three main endpoints.
+The backend is developed using **FastAPI** and exposes REST endpoints for application health checks and customer churn prediction.
 
-### Endpoints
+### API Endpoints
 
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/` | Confirms that the API is running |
-| GET | `/health` | Checks API and ML model health |
+| GET | `/health` | Checks API and model health |
 | POST | `/predict` | Predicts customer churn probability and risk |
+
+### Prediction Request
+
+The `/predict` endpoint accepts customer information in JSON format.
+
+The incoming data is validated using Pydantic before being passed to the prediction service.
 
 ### Prediction Response
 
-A successful prediction returns:
+A successful prediction returns a JSON response similar to:
 
 ```json
 {
@@ -114,46 +175,39 @@ A successful prediction returns:
 }
 ```
 
-Where:
+Response fields:
 
-- `prediction = 1` → customer is predicted to churn
-- `prediction = 0` → customer is predicted not to churn
-- `churn_probability` → predicted probability of churn
-- `risk_level` → customer risk classification
-- `message` → human-readable prediction result
+- `prediction`: `1` indicates likely churn; `0` indicates likely to stay.
+- `churn_probability`: predicted probability of churn.
+- `risk_level`: customer risk category.
+- `message`: human-readable prediction result.
 
 ### Input Validation
 
-Incoming customer data is validated using Pydantic.
+Invalid customer data is rejected by Pydantic validation.
 
-Invalid categorical values or invalid numerical ranges are rejected with:
+For example, missing required fields or invalid field values result in:
 
-```
+```text
 HTTP 422 Unprocessable Entity
 ```
 
 ### API Documentation
 
-After starting the application, interactive Swagger documentation is available at:
+FastAPI provides interactive Swagger documentation.
 
-```
-http://127.0.0.1:8001/docs
+After starting the backend locally, access:
+
+```text
+http://127.0.0.1:8000/docs
 ```
 
 ## Project Structure
 
-```
+```text
 customer-churn-intelligence-platform/
 │
-├── 01_Data_Understanding.ipynb
-├── 02_EDA.ipynb
-├── 03_Data_Preprocessing.ipynb
-├── 04_Baseline_Model_Training.ipynb
-├── 05_Cross_Validation_and_Model_Comparison.ipynb
-├── 06_Handling_Class_Imbalance.ipynb
-├── 07_Hyperparameter_Tuning.ipynb
-├── 08_Business_Insights_and_Recommendations.ipynb
-├── 09_Threshold_Optimization.ipynb
+├── app.py
 │
 ├── backend/
 │   ├── __init__.py
@@ -166,13 +220,12 @@ customer-churn-intelligence-platform/
 ├── tests/
 │   └── test_api.py
 │
+├── notebooks/
+│   └── Machine learning and data analysis notebooks
+│
 ├── customer.csv
 ├── final_logistic_regression_model.pkl
 ├── preprocessor.pkl
-├── baseline_model_results.csv
-├── baseline_vs_tuned_logistic_regression.csv
-├── class_imbalance_results.csv
-├── cross_validation_results.csv
 │
 ├── Dockerfile
 ├── requirements.txt
@@ -181,12 +234,15 @@ customer-churn-intelligence-platform/
 └── README.md
 ```
 
+*The model and preprocessing artefacts must be available locally for inference. They are excluded from Git by the current ignore rules.*
+
 ## Running Locally
 
 ### 1. Clone the repository
 
 ```bash
 git clone https://github.com/SayeedullahAlom/customer-churn-intelligence-platform.git
+
 cd customer-churn-intelligence-platform
 ```
 
@@ -194,6 +250,7 @@ cd customer-churn-intelligence-platform
 
 ```bash
 conda create -n backend python=3.12
+
 conda activate backend
 ```
 
@@ -203,27 +260,66 @@ conda activate backend
 pip install -r requirements.txt
 ```
 
-### 4. Start the API
+The Streamlit frontend also requires:
 
 ```bash
-python -m uvicorn backend.main:app --reload --port 8001
+pip install streamlit requests
+```
+
+### 4. Make model artefacts available
+
+Ensure the following files are present in the project root:
+
+```text
+final_logistic_regression_model.pkl
+preprocessor.pkl
+```
+
+These files are required by the backend for prediction. They are not included in the repository while `.pkl` files remain ignored by Git.
+
+### 5. Start the FastAPI backend
+
+Open a terminal and run:
+
+```bash
+conda activate backend
+
+python -m uvicorn backend.main:app --reload --port 8000
 ```
 
 The API will be available at:
 
-```
-http://127.0.0.1:8001
+```text
+http://127.0.0.1:8000
 ```
 
 Swagger documentation:
 
+```text
+http://127.0.0.1:8000/docs
 ```
-http://127.0.0.1:8001/docs
+
+### 6. Start the Streamlit frontend
+
+Open another terminal in the project directory:
+
+```bash
+conda activate backend
+
+streamlit run app.py
 ```
+
+Streamlit will display the local application URL in the terminal, usually:
+
+```text
+http://localhost:8501
+```
+
+Keep the FastAPI backend running while using the Streamlit application.
 
 ## Running Tests
 
-The API is tested using Pytest.
+The backend API is tested using Pytest and FastAPI's TestClient.
 
 Run:
 
@@ -231,23 +327,23 @@ Run:
 pytest -q
 ```
 
-Expected result:
+The test suite covers:
 
-```
+- API root endpoint.
+- Health check endpoint.
+- High-risk churn prediction.
+- Low-risk churn prediction.
+- Invalid input validation.
+
+The expected result for the current test suite is:
+
+```text
 5 passed
 ```
 
-The tests cover:
-
-- API root endpoint
-- Health check endpoint
-- High-risk churn prediction
-- Low-risk churn prediction
-- Invalid input validation
-
 ## Docker
 
-The API can be run inside a Docker container.
+The FastAPI backend can also be run inside a Docker container.
 
 ### Build the Docker image
 
@@ -258,45 +354,39 @@ docker build -t customer-churn-api .
 ### Run the container
 
 ```bash
-docker run -d --name customer-churn-container -p 8001:8001 customer-churn-api
+docker run -d \
+  --name customer-churn-container \
+  -p 8001:8001 \
+  customer-churn-api
 ```
 
 The API will then be available at:
 
-```
+```text
 http://127.0.0.1:8001
 ```
 
-Swagger:
+Swagger documentation:
 
-```
+```text
 http://127.0.0.1:8001/docs
 ```
 
-### Docker Health Check
-
-The `/health` endpoint confirms that the model and preprocessing pipeline are loaded correctly.
-
-Example:
-
-```json
-{
-  "status": "healthy",
-  "model_loaded": true,
-  "preprocessor_loaded": true,
-  "churn_threshold": 0.35
-}
-```
+Ensure that the model and preprocessing artefacts required by the Docker build are available in the project directory.
 
 ## Tech Stack
 
-**Machine Learning**
+**Machine Learning and Data Analysis**
 - Python
 - Pandas
 - NumPy
 - Scikit-learn
 - XGBoost
 - Joblib
+
+**Frontend**
+- Streamlit
+- Requests
 
 **Backend**
 - FastAPI
@@ -307,60 +397,43 @@ Example:
 - Pytest
 - FastAPI TestClient
 
-**Deployment**
+**Containerisation**
 - Docker
 
-**Development**
+**Development Tools**
 - Jupyter Notebook
 - Git
 - GitHub
 
-## Project Workflow
-
-```mermaid
-flowchart TD
-    A[Raw Dataset] --> B[Data Understanding]
-    B --> C[Exploratory Data Analysis]
-    C --> D[Data Preprocessing]
-    D --> E[Model Training]
-    E --> F[Model Comparison]
-    F --> G[Class Imbalance Analysis]
-    G --> H[Hyperparameter Tuning]
-    H --> I[Threshold Optimisation]
-    I --> J[Final Logistic Regression Model]
-    J --> K[FastAPI Prediction API]
-    K --> L[Pytest]
-    L --> M[Docker]
-```
-
 ## Business Objective
 
-Customer churn prediction can help businesses identify customers who are at higher risk of leaving.
+The main objective of this project is to help telecom businesses identify customers who are at a higher risk of leaving their services.
 
-The model's probability output can be used to prioritise retention efforts such as:
+The predicted churn probability can support retention strategies such as:
 
-- Targeted retention campaigns
-- Personalised offers
-- Customer support interventions
-- Contract or pricing recommendations
+- Targeted retention campaigns.
+- Personalised offers.
+- Customer support interventions.
+- Contract and pricing recommendations.
 
-The decision threshold is intentionally lowered to 0.35 to favour recall because missing a potential churn customer can be more costly than contacting some customers who ultimately would not churn.
+By prioritising recall through a lower classification threshold, the system aims to identify more potential churn customers and help businesses take proactive retention measures.
 
 ## Future Improvements
 
-Potential improvements include:
+Potential future improvements include:
 
-- Add a frontend dashboard for customer risk analysis
-- Add batch prediction support
-- Add database integration
-- Add authentication and authorisation
-- Add model monitoring
-- Add CI/CD using GitHub Actions
-- Deploy the API to a cloud platform
+- Batch customer churn prediction.
+- Database integration for storing customer predictions.
+- Authentication and authorisation.
+- Model performance monitoring.
+- CI/CD integration using GitHub Actions.
+- Cloud deployment of the application.
 
 ## Author
 
 **Sayeedullah Alom**
 
-BTech CSE — NIT Silchar
+BTech in Computer Science and Engineering  
+National Institute of Technology, Silchar
 
+GitHub: [SayeedullahAlom](https://github.com/SayeedullahAlom)
