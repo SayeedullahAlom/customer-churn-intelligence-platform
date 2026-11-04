@@ -988,15 +988,12 @@ analyze = st.button(
 )
 
 
+
 # ============================================================
 # PREDICTION
 # ============================================================
 
 if analyze:
-
-    # --------------------------------------------------------
-    # Send customer information to FastAPI
-    # --------------------------------------------------------
 
     customer_payload = {
         "Country": country,
@@ -1025,11 +1022,13 @@ if analyze:
     }
 
     try:
-        response = requests.post(
-            API_URL,
-            json=customer_payload,
-            timeout=30
-        )
+        with st.spinner("Analysing customer data..."):
+            response = requests.post(
+                API_URL,
+                json=customer_payload,
+                timeout=(10, 120)
+            )
+
         response.raise_for_status()
         api_result = response.json()
 
@@ -1039,28 +1038,26 @@ if analyze:
 
     except requests.exceptions.HTTPError as e:
         st.error(f"API Error: {e.response.status_code}")
-
-        try:
-            error_details = e.response.json()
-            st.json(error_details)
-        except ValueError:
-            st.error(e.response.text)
-
+        st.json(e.response.json())
         st.stop()
 
     except requests.exceptions.Timeout:
         st.error("The FastAPI request timed out. Please try again.")
         st.stop()
 
-    except requests.exceptions.HTTPError:
-        st.error("FastAPI returned an error while processing this customer.")
-        st.code(response.text)
+    except requests.exceptions.ConnectionError:
+        st.error("Could not connect to the FastAPI backend. Please try again.")
+        st.stop()
+
+    except requests.exceptions.RequestException as e:
+        st.error(f"Request failed: {e}")
         st.stop()
 
     except (KeyError, TypeError, ValueError) as e:
         st.error("FastAPI returned an unexpected response.")
         st.code(str(e))
         st.stop()
+
 
 
     # --------------------------------------------------------
