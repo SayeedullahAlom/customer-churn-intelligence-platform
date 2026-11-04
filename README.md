@@ -4,6 +4,12 @@ An end-to-end machine learning application that predicts customer churn probabil
 
 The platform combines a **Logistic Regression model**, a reusable Scikit-learn preprocessing pipeline, a **FastAPI backend**, and an interactive **Streamlit frontend** to help identify customers who may be likely to churn and support data-driven customer retention strategies.
 
+## Live Demo
+
+- **Streamlit Application:** [Open Live Application](https://customer-churn-intelligence-platformgit-mic9xakmp6o62govnjtzav.streamlit.app/)
+- **FastAPI Backend:** [Open API](https://customer-churn-api-v4kk.onrender.com)
+- **Swagger API Documentation:** [Explore API Endpoints](https://customer-churn-api-v4kk.onrender.com/docs)
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -12,6 +18,7 @@ The platform combines a **Logistic Regression model**, a reusable Scikit-learn p
 - [Machine Learning](#machine-learning)
 - [Model Evaluation](#model-evaluation)
 - [API](#api)
+- [Deployment](#deployment)
 - [Project Structure](#project-structure)
 - [Running Locally](#running-locally)
 - [Running Tests](#running-tests)
@@ -47,6 +54,7 @@ This project uses the Telco Customer Churn dataset to build a machine learning s
 - Centralised prediction and error handling.
 - Automated API testing using Pytest.
 - Docker support for containerising the API.
+- Separate frontend and backend deployment.
 
 ## Application Workflow
 
@@ -57,16 +65,19 @@ flowchart TD
     A[Customer Information] --> B[Streamlit Frontend]
     B --> C[FastAPI Backend]
     C --> D[Pydantic Input Validation]
-    D --> E[Preprocessing Pipeline]
-    E --> F[Logistic Regression Model]
-    F --> G[Churn Probability]
-    G --> H[Classification Threshold 0.35]
-    H --> I[Prediction and Risk Level]
-    I --> J[JSON Response]
-    J --> K[Streamlit Results Dashboard]
+    D --> E[Data Preparation]
+    E --> F[Preprocessing Pipeline]
+    F --> G[Logistic Regression Model]
+    G --> H[Churn Probability]
+    H --> I[Classification Threshold 0.35]
+    I --> J[Prediction and Risk Level]
+    J --> K[JSON Response]
+    K --> L[Streamlit Results Dashboard]
 ```
 
-The Streamlit frontend communicates with the FastAPI backend through HTTP requests. The backend validates the incoming customer data, applies preprocessing, generates a churn probability, and returns the prediction as a JSON response.
+The Streamlit frontend communicates with the FastAPI backend through HTTP POST requests. The backend validates the incoming customer data, prepares the input, applies preprocessing, generates a churn probability, and returns the prediction as a JSON response.
+
+The frontend then displays the prediction, churn probability, risk category, and retention suggestions.
 
 ## Machine Learning
 
@@ -79,10 +90,12 @@ A reusable preprocessing pipeline was developed using Scikit-learn's `Pipeline` 
 The preprocessing steps include:
 
 **Numerical features**
+
 - Missing-value imputation using the median.
 - Feature standardisation using `StandardScaler`.
 
 **Categorical features**
+
 - Missing-value imputation using the most frequent value.
 - Encoding using `OneHotEncoder` with unknown-category handling.
 
@@ -169,7 +182,7 @@ A successful prediction returns a JSON response similar to:
 ```json
 {
   "prediction": 1,
-  "churn_probability": 0.7989,
+  "churn_probability": 0.8426,
   "risk_level": "High",
   "message": "Customer is likely to churn."
 }
@@ -179,8 +192,14 @@ Response fields:
 
 - `prediction`: `1` indicates likely churn; `0` indicates likely to stay.
 - `churn_probability`: predicted probability of churn.
-- `risk_level`: customer risk category.
+- `risk_level`: backend risk classification (High or Low).
 - `message`: human-readable prediction result.
+
+The Streamlit frontend additionally displays three risk categories based on churn probability:
+
+- **Low:** Probability below 30%.
+- **Medium:** Probability from 30% to below 60%.
+- **High:** Probability of 60% or above.
 
 ### Input Validation
 
@@ -192,15 +211,50 @@ For example, missing required fields or invalid field values result in:
 HTTP 422 Unprocessable Entity
 ```
 
+Prediction failures are handled by the backend and return an appropriate HTTP 500 response.
+
+### Health Check
+
+The `/health` endpoint verifies whether the model and preprocessing artefacts are loaded successfully.
+
+A healthy response includes:
+
+```json
+{
+  "status": "healthy",
+  "model_loaded": true,
+  "preprocessor_loaded": true,
+  "churn_threshold": 0.35
+}
+```
+
 ### API Documentation
 
 FastAPI provides interactive Swagger documentation.
+
+For the deployed backend, access:
+
+[https://customer-churn-api-v4kk.onrender.com/docs](https://customer-churn-api-v4kk.onrender.com/docs)
 
 After starting the backend locally, access:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
+
+## Deployment
+
+The application is deployed using separate frontend and backend services.
+
+**Frontend — Streamlit Community Cloud**
+
+The Streamlit application provides the user interface, accepts customer information, sends requests to the backend, and displays the prediction results.
+
+**Backend — Render**
+
+The FastAPI backend loads the trained Logistic Regression model and preprocessing artefact, validates incoming requests, performs inference, and returns JSON responses.
+
+The frontend communicates with the deployed backend through its REST API endpoint.
 
 ## Project Structure
 
@@ -234,7 +288,14 @@ customer-churn-intelligence-platform/
 └── README.md
 ```
 
-*The model and preprocessing artefacts must be available locally for inference. They are excluded from Git by the current ignore rules.*
+**Model artefacts**
+
+The following files are required by the backend for inference:
+
+- `final_logistic_regression_model.pkl`
+- `preprocessor.pkl`
+
+Both artefacts are tracked in the GitHub repository and are available to the deployed backend. Although `.pkl` files are listed in `.gitignore` to prevent new untracked pickle files from being added automatically, these existing files are already tracked by Git.
 
 ## Running Locally
 
@@ -275,7 +336,7 @@ final_logistic_regression_model.pkl
 preprocessor.pkl
 ```
 
-These files are required by the backend for prediction. They are not included in the repository while `.pkl` files remain ignored by Git.
+These files are required by the backend for prediction and are included in the repository.
 
 ### 5. Start the FastAPI backend
 
@@ -335,11 +396,7 @@ The test suite covers:
 - Low-risk churn prediction.
 - Invalid input validation.
 
-The expected result for the current test suite is:
-
-```text
-5 passed
-```
+The test suite was designed to cover these five scenarios. Run the command above to see the current test results.
 
 ## Docker
 
@@ -372,11 +429,12 @@ Swagger documentation:
 http://127.0.0.1:8001/docs
 ```
 
-Ensure that the model and preprocessing artefacts required by the Docker build are available in the project directory.
+The Dockerfile copies the backend code and the required model and preprocessing artefacts into the image. Ensure that these files are available in the project directory when building the image.
 
 ## Tech Stack
 
 **Machine Learning and Data Analysis**
+
 - Python
 - Pandas
 - NumPy
@@ -385,22 +443,32 @@ Ensure that the model and preprocessing artefacts required by the Docker build a
 - Joblib
 
 **Frontend**
+
 - Streamlit
 - Requests
 
 **Backend**
+
 - FastAPI
 - Pydantic
 - Uvicorn
 
 **Testing**
+
 - Pytest
 - FastAPI TestClient
 
 **Containerisation**
+
 - Docker
 
+**Deployment**
+
+- Streamlit Community Cloud
+- Render
+
 **Development Tools**
+
 - Jupyter Notebook
 - Git
 - GitHub
@@ -427,7 +495,7 @@ Potential future improvements include:
 - Authentication and authorisation.
 - Model performance monitoring.
 - CI/CD integration using GitHub Actions.
-- Cloud deployment of the application.
+- Model retraining using updated customer data.
 
 ## Author
 
