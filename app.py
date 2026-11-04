@@ -830,8 +830,6 @@ with col3:
 
     tenure_months = st.number_input(
         "Tenure Months",
-        min_value=0,
-        max_value=100,
         value=12,
         step=1
     )
@@ -939,31 +937,25 @@ with col3:
 
 st.markdown("## 💳 Billing Information")
 
-
 col1, col2 = st.columns(2)
-
 
 with col1:
 
     monthly_charges = st.number_input(
         "Monthly Charges",
-        min_value=0.0,
         value=70.00,
         step=1.0,
         format="%.2f"
     )
 
-
 with col2:
 
     total_charges = st.number_input(
         "Total Charges",
-        min_value=0.0,
         value=840.00,
         step=1.0,
         format="%.2f"
     )
-
 
 # ============================================================
 # SEPARATOR
@@ -982,11 +974,12 @@ st.markdown(
 st.markdown("## 🔍 Customer Churn Analysis")
 
 
+results_placeholder = st.empty()
+
 analyze = st.button(
     "🚀 Analyze Customer Churn",
     use_container_width=True
 )
-
 
 
 # ============================================================
@@ -994,6 +987,42 @@ analyze = st.button(
 # ============================================================
 
 if analyze:
+
+    # Clear previous prediction immediately
+    results_placeholder.empty()
+
+    # --------------------------------------------------------
+    # INPUT VALIDATION
+    # --------------------------------------------------------
+
+    errors = []
+
+    if not (-90 <= latitude <= 90):
+        errors.append("Latitude must be between -90 and 90.")
+
+    if not (-180 <= longitude <= 180):
+        errors.append("Longitude must be between -180 and 180.")
+
+    if not (0 <= tenure_months <= 72):
+        errors.append("Tenure must be between 0 and 72 months.")
+
+    if not (0 <= monthly_charges <= 118.75):
+        errors.append("Monthly Charges must be between 0 and 118.75.")
+
+    if not (0 <= total_charges <= 8684.80):
+        errors.append("Total Charges must be between 0 and 8684.80.")
+
+    # Stop if any input is invalid
+    if errors:
+        for error in errors:
+            st.error(error)
+
+        st.warning("Please correct the invalid inputs before analysing the customer.")
+        st.stop()
+
+    # --------------------------------------------------------
+    # PREPARE CUSTOMER PAYLOAD
+    # --------------------------------------------------------
 
     customer_payload = {
         "Country": country,
@@ -1021,6 +1050,10 @@ if analyze:
         "Total_Charges": total_charges
     }
 
+    # --------------------------------------------------------
+    # SEND REQUEST TO FASTAPI
+    # --------------------------------------------------------
+
     try:
         with st.spinner("Analysing customer data..."):
             response = requests.post(
@@ -1036,9 +1069,16 @@ if analyze:
         probability = float(api_result["churn_probability"])
         churn_probability = probability * 100
 
+        if prediction not in (0, 1) or not (0 <= probability <= 1):
+            st.error("FastAPI returned invalid prediction data.")
+            st.stop()
+
     except requests.exceptions.HTTPError as e:
         st.error(f"API Error: {e.response.status_code}")
-        st.json(e.response.json())
+        try:
+            st.json(e.response.json())
+        except ValueError:
+            st.error(e.response.text)
         st.stop()
 
     except requests.exceptions.Timeout:
@@ -1058,254 +1098,261 @@ if analyze:
         st.code(str(e))
         st.stop()
 
-
-
     # --------------------------------------------------------
-    # Determine risk
+    # DISPLAY RESULTS
     # --------------------------------------------------------
 
-    if churn_probability < 30:
+    with results_placeholder.container():
 
-        risk = "Low Risk"
-        risk_class = "risk-low"
-
-    elif churn_probability < 60:
-
-        risk = "Medium Risk"
-        risk_class = "risk-medium"
-
-    else:
-
-        risk = "High Risk"
-        risk_class = "risk-high"
+        st.success("Prediction completed successfully!")
 
 
-    # --------------------------------------------------------
-    # Prediction label
-    # --------------------------------------------------------
+        # --------------------------------------------------------
+        # Determine risk
+        # --------------------------------------------------------
 
-    if prediction == 1:
+        if churn_probability < 30:
 
-        prediction_label = "Likely to Churn"
+            risk = "Low Risk"
+            risk_class = "risk-low"
 
-    else:
+        elif churn_probability < 60:
 
-        prediction_label = "Likely to Stay"
+            risk = "Medium Risk"
+            risk_class = "risk-medium"
+
+        else:
+
+            risk = "High Risk"
+            risk_class = "risk-high"
 
 
-    # ========================================================
-    # RESULTS
-    # ========================================================
+        # --------------------------------------------------------
+        # Prediction label
+        # --------------------------------------------------------
 
-    st.markdown("## 📊 Prediction Results")
+        if prediction == 1:
 
-    if risk_class == "risk-high":
-        risk_icon = "🔴"
-        risk_short = "High risk"
-    elif risk_class == "risk-medium":
-        risk_icon = "🟠"
-        risk_short = "Moderate risk"
-    else:
-        risk_icon = "🟢"
-        risk_short = "Low risk"
+            prediction_label = "Likely to Churn"
 
-    prediction_icon = "↗️" if prediction == 1 else "✓"
-    prediction_caption = (
-        "The model identifies this customer as at risk of leaving."
-        if prediction == 1
-        else "The model does not currently flag this customer as likely to leave."
-    )
+        else:
 
-    st.markdown(
-        f'<div class="insight-grid">'
-        f'<div class="insight-card probability">'
-        f'<div class="insight-topline"><span class="insight-icon">📈</span> Churn probability</div>'
-        f'<div class="insight-value">{churn_probability:.2f}%</div>'
-        f'<div class="insight-caption">Estimated likelihood that this customer will churn.</div>'
-        f'</div>'
-        f'<div class="insight-card prediction">'
-        f'<div class="insight-topline"><span class="insight-icon">{prediction_icon}</span> Model prediction</div>'
-        f'<div class="insight-value">{prediction_label}</div>'
-        f'<div class="insight-caption">{prediction_caption}</div>'
-        f'</div>'
-        f'<div class="insight-card {risk_class}">'
-        f'<div class="insight-topline"><span class="insight-icon">{risk_icon}</span> Customer risk</div>'
-        f'<div class="insight-value">{risk}</div>'
-        f'<div class="insight-caption">Risk band based on the estimated probability.</div>'
-        f'</div>'
-        f'</div>',
-        unsafe_allow_html=True
-    )
+            prediction_label = "Likely to Stay"
 
-    st.markdown(
-        f'<div class="probability-panel">'
-        f'<div class="probability-panel-head">'
-        f'<div><div class="probability-panel-label">Churn likelihood score</div>'
-        f'<div class="probability-panel-value">{churn_probability:.2f}%</div>'
-        f'<div class="probability-panel-note">A higher score indicates a greater estimated chance of churn.</div></div>'
-        f'<div class="probability-pill">{risk_icon} {risk_short}</div>'
-        f'</div></div>',
-        unsafe_allow_html=True
-    )
 
-    marker_position = min(max(churn_probability, 0.0), 100.0)
-    st.markdown(
-        f'<div class="signal-gauge">'
-        f'<div class="marker" data-label="{churn_probability:.1f}%" style="left: {marker_position}%;"></div>'
-        f'<div class="track"><div class="zone-low"></div><div class="zone-med"></div><div class="zone-high"></div></div>'
-        f'<div class="ticks"><span>0%</span><span>30% · low</span><span>60% · high</span><span>100%</span></div>'
-        f'</div>',
-        unsafe_allow_html=True
-    )
+        # ========================================================
+        # RESULTS
+        # ========================================================
 
-    # ========================================================
-    # RECOMMENDED ACTION
-    # ========================================================
+        st.markdown("## 📊 Prediction Results")
 
-    st.markdown("## 💡 Recommended Actions")
+        if risk_class == "risk-high":
+            risk_icon = "🔴"
+            risk_short = "High risk"
+        elif risk_class == "risk-medium":
+            risk_icon = "🟠"
+            risk_short = "Moderate risk"
+        else:
+            risk_icon = "🟢"
+            risk_short = "Low risk"
 
-    if risk == "High Risk":
-        recommendation_title = "Prioritise retention outreach"
-        recommendation_subtitle = "High churn probability — take a proactive approach."
-        recommendation_icon = "🎯"
-        recommendation_items = [
-            "Contact the customer proactively to understand their concerns.",
-            "Review service issues, especially internet reliability and technical support.",
-            "Offer a relevant retention incentive or a suitable longer-term plan.",
-        ]
-    elif risk == "Medium Risk":
-        recommendation_title = "Strengthen customer engagement"
-        recommendation_subtitle = "Moderate churn probability — reduce friction before it grows."
-        recommendation_icon = "🤝"
-        recommendation_items = [
-            "Send a personalised check-in and ask about service satisfaction.",
-            "Review the customer's plan and usage for potential value improvements.",
-            "Monitor support interactions and follow up on unresolved issues.",
-        ]
-    else:
-        recommendation_title = "Maintain a positive customer experience"
-        recommendation_subtitle = "Low churn probability — focus on loyalty and consistency."
-        recommendation_icon = "🌱"
-        recommendation_items = [
-            "Continue providing reliable service and responsive support.",
-            "Recognise loyalty with relevant benefits rather than unnecessary discounts.",
-            "Reassess risk periodically as tenure, billing and service usage change.",
-        ]
-
-    recommendation_html = ''.join(
-        f'<div class="profile-row"><span class="profile-label">Action {i}</span>'
-        f'<span class="profile-value" style="max-width:78%;font-weight:500">{item}</span></div>'
-        for i, item in enumerate(recommendation_items, start=1)
-    )
-    st.markdown(
-        f'<div class="recommendation-panel">'
-        f'<div class="recommendation-head"><div class="recommendation-icon">{recommendation_icon}</div>'
-        f'<div><div class="recommendation-title">{recommendation_title}</div>'
-        f'<div class="recommendation-subtitle">{recommendation_subtitle}</div></div></div>'
-        f'<div class="recommendation-copy">Suggested next steps for this customer:</div>'
-        f'{recommendation_html}</div>',
-        unsafe_allow_html=True
-    )
-
-    # ========================================================
-    # CUSTOMER PROFILE SUMMARY
-    # ========================================================
-
-    st.markdown("## 👤 Customer Profile Summary")
-    st.markdown(
-        '<div class="subtitle">A quick view of the customer attributes used for this assessment.</div>',
-        unsafe_allow_html=True
-    )
-
-    customer_rows = [
-        ("Country", country),
-        ("State", state),
-        ("Gender", gender),
-        ("Senior citizen", senior_citizen),
-        ("Partner", partner),
-        ("Dependents", dependents),
-        ("Latitude", f"{latitude:.4f}"),
-        ("Longitude", f"{longitude:.4f}"),
-    ]
-    service_rows = [
-        ("Tenure", f"{tenure_months} months"),
-        ("Phone service", phone_service),
-        ("Multiple lines", multiple_lines),
-        ("Internet service", internet_service),
-        ("Online security", online_security),
-        ("Online backup", online_backup),
-        ("Device protection", device_protection),
-        ("Tech support", tech_support),
-        ("Streaming TV", streaming_tv),
-        ("Streaming movies", streaming_movies),
-        ("Contract", contract),
-        ("Paperless billing", paperless_billing),
-        ("Payment method", payment_method),
-        ("Monthly charges", f"${monthly_charges:,.2f}"),
-        ("Total charges", f"${total_charges:,.2f}"),
-    ]
-
-    def profile_rows_html(rows):
-        return ''.join(
-            f'<div class="profile-row"><span class="profile-label">{label}</span>'
-            f'<span class="profile-value">{value}</span></div>'
-            for label, value in rows
+        prediction_icon = "↗️" if prediction == 1 else "✓"
+        prediction_caption = (
+            "The model identifies this customer as at risk of leaving."
+            if prediction == 1
+            else "The model does not currently flag this customer as likely to leave."
         )
 
-    profile_col1, profile_col2 = st.columns(2, gap="large")
-    with profile_col1:
         st.markdown(
-            f'<div class="profile-card"><div class="profile-card-head">'
-            f'<div class="profile-card-icon">👤</div><div><div class="profile-card-title">Customer details</div>'
-            f'<div class="profile-card-description">Identity and location</div></div></div>'
-            f'{profile_rows_html(customer_rows)}</div>',
-            unsafe_allow_html=True
-        )
-    with profile_col2:
-        st.markdown(
-            f'<div class="profile-card"><div class="profile-card-head">'
-            f'<div class="profile-card-icon">📡</div><div><div class="profile-card-title">Services & billing</div>'
-            f'<div class="profile-card-description">Subscriptions, contract and charges</div></div></div>'
-            f'{profile_rows_html(service_rows)}</div>',
+            f'<div class="insight-grid">'
+            f'<div class="insight-card probability">'
+            f'<div class="insight-topline"><span class="insight-icon">📈</span> Churn probability</div>'
+            f'<div class="insight-value">{churn_probability:.2f}%</div>'
+            f'<div class="insight-caption">Estimated likelihood that this customer will churn.</div>'
+            f'</div>'
+            f'<div class="insight-card prediction">'
+            f'<div class="insight-topline"><span class="insight-icon">{prediction_icon}</span> Model prediction</div>'
+            f'<div class="insight-value">{prediction_label}</div>'
+            f'<div class="insight-caption">{prediction_caption}</div>'
+            f'</div>'
+            f'<div class="insight-card {risk_class}">'
+            f'<div class="insight-topline"><span class="insight-icon">{risk_icon}</span> Customer risk</div>'
+            f'<div class="insight-value">{risk}</div>'
+            f'<div class="insight-caption">Risk band based on the estimated probability.</div>'
+            f'</div>'
+            f'</div>',
             unsafe_allow_html=True
         )
 
-
-    # ========================================================
-    # TECHNICAL INFORMATION
-    # ========================================================
-
-    st.markdown("## ⚙️ Model Information")
-
-
-    technical_col1, technical_col2, technical_col3 = st.columns(3)
-
-
-    with technical_col1:
-
-        st.metric(
-            "Model",
-            "Logistic Regression"
+        st.markdown(
+            f'<div class="probability-panel">'
+            f'<div class="probability-panel-head">'
+            f'<div><div class="probability-panel-label">Churn likelihood score</div>'
+            f'<div class="probability-panel-value">{churn_probability:.2f}%</div>'
+            f'<div class="probability-panel-note">A higher score indicates a greater estimated chance of churn.</div></div>'
+            f'<div class="probability-pill">{risk_icon} {risk_short}</div>'
+            f'</div></div>',
+            unsafe_allow_html=True
         )
 
-
-    with technical_col2:
-
-        st.metric(
-            "Input Features",
-            len(customer_payload)
+        marker_position = min(max(churn_probability, 0.0), 100.0)
+        st.markdown(
+            f'<div class="signal-gauge">'
+            f'<div class="marker" data-label="{churn_probability:.1f}%" style="left: {marker_position}%;"></div>'
+            f'<div class="track"><div class="zone-low"></div><div class="zone-med"></div><div class="zone-high"></div></div>'
+            f'<div class="ticks"><span>0%</span><span>30% · low</span><span>60% · high</span><span>100%</span></div>'
+            f'</div>',
+            unsafe_allow_html=True
         )
 
+        # ========================================================
+        # RECOMMENDED ACTION
+        # ========================================================
 
-    with technical_col3:
+        st.markdown("## 💡 Recommended Actions")
 
-        st.metric(
-            "Prediction Engine",
-            "FastAPI"
+        if risk == "High Risk":
+            recommendation_title = "Prioritise retention outreach"
+            recommendation_subtitle = "High churn probability — take a proactive approach."
+            recommendation_icon = "🎯"
+            recommendation_items = [
+                "Contact the customer proactively to understand their concerns.",
+                "Review service issues, especially internet reliability and technical support.",
+                "Offer a relevant retention incentive or a suitable longer-term plan.",
+            ]
+        elif risk == "Medium Risk":
+            recommendation_title = "Strengthen customer engagement"
+            recommendation_subtitle = "Moderate churn probability — reduce friction before it grows."
+            recommendation_icon = "🤝"
+            recommendation_items = [
+                "Send a personalised check-in and ask about service satisfaction.",
+                "Review the customer's plan and usage for potential value improvements.",
+                "Monitor support interactions and follow up on unresolved issues.",
+            ]
+        else:
+            recommendation_title = "Maintain a positive customer experience"
+            recommendation_subtitle = "Low churn probability — focus on loyalty and consistency."
+            recommendation_icon = "🌱"
+            recommendation_items = [
+                "Continue providing reliable service and responsive support.",
+                "Recognise loyalty with relevant benefits rather than unnecessary discounts.",
+                "Reassess risk periodically as tenure, billing and service usage change.",
+            ]
+
+        recommendation_html = ''.join(
+            f'<div class="profile-row"><span class="profile-label">Action {i}</span>'
+            f'<span class="profile-value" style="max-width:78%;font-weight:500">{item}</span></div>'
+            for i, item in enumerate(recommendation_items, start=1)
+        )
+        st.markdown(
+            f'<div class="recommendation-panel">'
+            f'<div class="recommendation-head"><div class="recommendation-icon">{recommendation_icon}</div>'
+            f'<div><div class="recommendation-title">{recommendation_title}</div>'
+            f'<div class="recommendation-subtitle">{recommendation_subtitle}</div></div></div>'
+            f'<div class="recommendation-copy">Suggested next steps for this customer:</div>'
+            f'{recommendation_html}</div>',
+            unsafe_allow_html=True
         )
 
+        # ========================================================
+        # CUSTOMER PROFILE SUMMARY
+        # ========================================================
 
-# ============================================================
+        st.markdown("## 👤 Customer Profile Summary")
+        st.markdown(
+            '<div class="subtitle">A quick view of the customer attributes used for this assessment.</div>',
+            unsafe_allow_html=True
+        )
+
+        customer_rows = [
+            ("Country", country),
+            ("State", state),
+            ("Gender", gender),
+            ("Senior citizen", senior_citizen),
+            ("Partner", partner),
+            ("Dependents", dependents),
+            ("Latitude", f"{latitude:.4f}"),
+            ("Longitude", f"{longitude:.4f}"),
+        ]
+        service_rows = [
+            ("Tenure", f"{tenure_months} months"),
+            ("Phone service", phone_service),
+            ("Multiple lines", multiple_lines),
+            ("Internet service", internet_service),
+            ("Online security", online_security),
+            ("Online backup", online_backup),
+            ("Device protection", device_protection),
+            ("Tech support", tech_support),
+            ("Streaming TV", streaming_tv),
+            ("Streaming movies", streaming_movies),
+            ("Contract", contract),
+            ("Paperless billing", paperless_billing),
+            ("Payment method", payment_method),
+            ("Monthly charges", f"${monthly_charges:,.2f}"),
+            ("Total charges", f"${total_charges:,.2f}"),
+        ]
+
+        def profile_rows_html(rows):
+            return ''.join(
+                f'<div class="profile-row"><span class="profile-label">{label}</span>'
+                f'<span class="profile-value">{value}</span></div>'
+                for label, value in rows
+            )
+
+        profile_col1, profile_col2 = st.columns(2, gap="large")
+        with profile_col1:
+            st.markdown(
+                f'<div class="profile-card"><div class="profile-card-head">'
+                f'<div class="profile-card-icon">👤</div><div><div class="profile-card-title">Customer details</div>'
+                f'<div class="profile-card-description">Identity and location</div></div></div>'
+                f'{profile_rows_html(customer_rows)}</div>',
+                unsafe_allow_html=True
+            )
+        with profile_col2:
+            st.markdown(
+                f'<div class="profile-card"><div class="profile-card-head">'
+                f'<div class="profile-card-icon">📡</div><div><div class="profile-card-title">Services & billing</div>'
+                f'<div class="profile-card-description">Subscriptions, contract and charges</div></div></div>'
+                f'{profile_rows_html(service_rows)}</div>',
+                unsafe_allow_html=True
+            )
+
+
+        # ========================================================
+        # TECHNICAL INFORMATION
+        # ========================================================
+
+        st.markdown("## ⚙️ Model Information")
+
+
+        technical_col1, technical_col2, technical_col3 = st.columns(3)
+
+
+        with technical_col1:
+
+            st.metric(
+                "Model",
+                "Logistic Regression"
+            )
+
+
+        with technical_col2:
+
+            st.metric(
+                "Input Features",
+                len(customer_payload)
+            )
+
+
+        with technical_col3:
+
+            st.metric(
+                "Prediction Engine",
+                "FastAPI"
+            )
+
+
+    # ============================================================
 # FOOTER
 # ============================================================
 
